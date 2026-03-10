@@ -1,0 +1,36 @@
+[project]
+name = "dct"
+version = "0.1.0"
+description = "Visual DAG composer for typed Python transition functions"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.12.5",
+    "rich>=14.3.3",
+    "typer>=0.24.1",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "watchfiles>=1.0.0",
+]
+
+[project.scripts]
+dct = "dct.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.25.0",
+    "httpx>=0.28.0",
+    "ruff>=0.15.5",
+    "ty>=0.0.21",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dct"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"dct/static" = "dct/static"
