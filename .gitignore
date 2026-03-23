@@ -12,5 +12,5 @@ wheels/
 # Frontend build artifacts (output goes to dct/static/)
 frontend/dist/
 .idea/
-.github/
+
 *.DS_Store
