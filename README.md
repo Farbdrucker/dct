@@ -2,6 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.13%2B-blue)
 ![React](https://img.shields.io/badge/react-19-61DAFB?logo=react&logoColor=white)
+[![Tests](https://github.com/Farbdrucker/dct/actions/workflows/tests.yml/badge.svg)](https://github.com/Farbdrucker/dct/actions/workflows/tests.yml)
 
 A visual DAG composer for typed Python transition functions.
 
