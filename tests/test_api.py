@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 EXPECTED_TRANSITIONS = {"AddTwoInt", "AddTwoFloats", "Div", "Power", "Root"}
+EXPECTED_SINKS = {"Collect"}
 EXPECTED_SOURCES = {"ConstSource", "ConstIntSource", "RangeSource"}
 
 
@@ -13,7 +14,7 @@ def test_get_schema(client):
     data = resp.json()
     assert "schema_version" in data
     names = {n["class_name"] for n in data["nodes"]}
-    assert names == EXPECTED_TRANSITIONS | EXPECTED_SOURCES
+    assert names == EXPECTED_TRANSITIONS | EXPECTED_SINKS | EXPECTED_SOURCES
 
 
 def test_schema_nodes_have_required_fields(client):

@@ -88,3 +88,91 @@ def test_batched_execution_trace_length():
     assert resp.success is True
     # 3 iterations × 1 transition node = 3 trace entries
     assert len(resp.execution_trace) == 3
+
+
+# ---------------------------------------------------------------------------
+# Partial failure — some rows succeed, others fail
+# ---------------------------------------------------------------------------
+
+def test_partial_failure_failure_report():
+    """RangeSource(0..3) → Div(1/value): row 0 fails (div-by-zero), rows 1-2 succeed."""
+    registry, schemas = setup()
+    # RangeSource yields 0, 1, 2
+    # Div: nominator=1, denominator=value_from_source
+    # Row 0: 1/0 → ZeroDivisionError
+    # Row 1: 1/1 = 1.0
+    # Row 2: 1/2 = 0.5
+    payload = DagPayload(
+        nodes=[
+            node("src", "RangeSource", config={"start": 0, "stop": 3}),
+            node("div", "Div", config={}, constants={"nominator": 1.0}),
+        ],
+        edges=[edge("e1", "src", "output", "div", "denominator")],
+    )
+    resp = execute(payload, registry, schemas)
+
+    # Overall: not all rows succeeded
+    assert resp.success is False
+
+    # 2 successful rows
+    assert len(resp.results) == 2
+    values = [r.value for r in resp.results]
+    assert pytest.approx(1.0) in values
+    assert pytest.approx(0.5) in values
+
+    # Failure report populated
+    assert resp.failure_report is not None
+    assert resp.failure_report.total_rows == 3
+    assert resp.failure_report.succeeded_rows == 2
+    assert resp.failure_report.failed_rows == 1
+
+    failed = resp.failure_report.failed_items
+    assert len(failed) == 1
+    assert failed[0].row_index == 0
+    assert failed[0].success is False
+    assert failed[0].error is not None
+    assert failed[0].error.exception_type == "ZeroDivisionError"
+    # Source values captured for re-execution
+    assert "src" in failed[0].source_values
+    assert failed[0].source_values["src"] == 0
+
+    # row_results has all 3 rows
+    assert len(resp.row_results) == 3
+
+
+def test_partial_failure_all_rows_in_trace():
+    """The global execution_trace must include entries for ALL rows (successful + failed)."""
+    registry, schemas = setup()
+    payload = DagPayload(
+        nodes=[
+            node("src", "RangeSource", config={"start": 0, "stop": 3}),
+            node("div", "Div", config={}, constants={"nominator": 1.0}),
+        ],
+        edges=[edge("e1", "src", "output", "div", "denominator")],
+    )
+    resp = execute(payload, registry, schemas)
+    # 3 rows × 1 transition node = 3 trace entries
+    assert len(resp.execution_trace) == 3
+    # The failed row (row 0 with denominator=0) should have error in trace
+    error_entries = [t for t in resp.execution_trace if t.error is not None]
+    assert len(error_entries) == 1
+    assert error_entries[0].error.exception_type == "ZeroDivisionError"
+
+
+def test_all_rows_fail():
+    """When all rows fail, success=False, results=[], failure_report.failed_rows==total."""
+    registry, schemas = setup()
+    payload = DagPayload(
+        nodes=[
+            node("src", "ConstSource", config={"value": 0.0, "count": 3}),
+            node("div", "Div", config={}, constants={"nominator": 1.0}),
+        ],
+        edges=[edge("e1", "src", "output", "div", "denominator")],
+    )
+    resp = execute(payload, registry, schemas)
+    assert resp.success is False
+    assert resp.results == []
+    assert resp.failure_report is not None
+    assert resp.failure_report.total_rows == 3
+    assert resp.failure_report.failed_rows == 3
+    assert resp.failure_report.succeeded_rows == 0

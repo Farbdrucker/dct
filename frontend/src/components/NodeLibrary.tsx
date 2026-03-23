@@ -21,9 +21,11 @@ function Section({ title, schemas, onAdd }: { title: string; schemas: NodeSchema
           >
             <div className="font-medium">{s.class_name}</div>
             <div className="text-gray-400 text-xs mt-0.5">
-              {s.kind === 'source'
-                ? `→ ${s.output_port.type}`
-                : `(${s.input_ports.map((p) => p.name).join(', ')}) → ${s.output_port.type}`}
+              {s.kind === 'sink'
+                ? `(${s.input_ports.map((p) => p.name).join(', ')}) → ∅`
+                : s.kind === 'source'
+                  ? `→ ${s.output_port?.type}`
+                  : `(${s.input_ports.map((p) => p.name).join(', ')}) → ${s.output_port?.type}`}
             </div>
           </button>
         ))}

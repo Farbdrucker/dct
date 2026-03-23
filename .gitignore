@@ -13,3 +13,4 @@ wheels/
 frontend/dist/
 .idea/
 .github/
+*.DS_Store

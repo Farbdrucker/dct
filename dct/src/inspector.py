@@ -1,4 +1,5 @@
 """Inspect the transitions and sources modules and produce NodeSchema objects."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -21,14 +22,20 @@ def _type_label(annotation: object) -> str:
     """Return a human-readable type string."""
     if annotation is inspect.Parameter.empty:
         return "any"
-    return str(annotation).replace("typing.", "").replace("<class '", "").replace("'>", "")
+    return (
+        str(annotation).replace("typing.", "").replace("<class '", "").replace("'>", "")
+    )
 
 
 def _config_fields_for(cls: type) -> list[ConfigField]:
     """Extract config fields from a Pydantic dataclass."""
     fields = []
     for field in dataclasses.fields(cls):
-        raw_ann = cls.__dataclass_fields__[field.name].type if hasattr(cls, "__dataclass_fields__") else field.type
+        raw_ann = (
+            cls.__dataclass_fields__[field.name].type
+            if hasattr(cls, "__dataclass_fields__")
+            else field.type
+        )
         type_set = normalize_type(raw_ann)
         has_default = (
             not isinstance(field.default, dataclasses._MISSING_TYPE)  # type: ignore[attr-defined]
@@ -37,14 +44,16 @@ def _config_fields_for(cls: type) -> list[ConfigField]:
         default_val = None
         if not isinstance(field.default, dataclasses._MISSING_TYPE):  # type: ignore[attr-defined]
             default_val = field.default
-        fields.append(ConfigField(
-            name=field.name,
-            type=_type_label(raw_ann),
-            type_set=sorted(type_set),
-            default=default_val,
-            required=not has_default,
-            json_schema=_json_schema_for(raw_ann),
-        ))
+        fields.append(
+            ConfigField(
+                name=field.name,
+                type=_type_label(raw_ann),
+                type_set=sorted(type_set),
+                default=default_val,
+                required=not has_default,
+                json_schema=_json_schema_for(raw_ann),
+            )
+        )
     return fields
 
 
@@ -57,7 +66,11 @@ def _json_schema_for(annotation: object) -> dict:
 
 
 def inspect_module(module: ModuleType) -> list[NodeSchema]:
-    """Return a NodeSchema for every Pydantic dataclass with __call__ in *module*."""
+    """Return a NodeSchema for every Pydantic dataclass with __call__ in *module*.
+
+    Classes that also define ``close`` are recognised as sinks (kind="sink")
+    and are given no output port.
+    """
     schemas: list[NodeSchema] = []
 
     for name, cls in inspect.getmembers(module, inspect.isclass):
@@ -68,6 +81,8 @@ def inspect_module(module: ModuleType) -> list[NodeSchema]:
         if "__call__" not in cls.__dict__:
             continue  # skip base classes or non-callables
 
+        is_sink = "close" in cls.__dict__
+
         sig = inspect.signature(cls.__call__)
         input_ports: list[Port] = []
         for param_name, param in sig.parameters.items():
@@ -75,20 +90,29 @@ def inspect_module(module: ModuleType) -> list[NodeSchema]:
                 continue
             ann = param.annotation
             type_set = normalize_type(ann)
-            input_ports.append(Port(name=param_name, type=_type_label(ann), type_set=sorted(type_set)))
+            input_ports.append(
+                Port(name=param_name, type=_type_label(ann), type_set=sorted(type_set))
+            )
 
-        ret = sig.return_annotation
-        out_type_set = normalize_type(ret)
-        output_port = Port(name="output", type=_type_label(ret), type_set=sorted(out_type_set))
+        if is_sink:
+            output_port = None
+        else:
+            ret = sig.return_annotation
+            out_type_set = normalize_type(ret)
+            output_port = Port(
+                name="output", type=_type_label(ret), type_set=sorted(out_type_set)
+            )
 
-        schemas.append(NodeSchema(
-            class_name=name,
-            kind="transition",
-            description=inspect.getdoc(cls),
-            config_fields=_config_fields_for(cls),
-            input_ports=input_ports,
-            output_port=output_port,
-        ))
+        schemas.append(
+            NodeSchema(
+                class_name=name,
+                kind="sink" if is_sink else "transition",
+                description=inspect.getdoc(cls),
+                config_fields=_config_fields_for(cls),
+                input_ports=input_ports,
+                output_port=output_port,
+            )
+        )
 
     return schemas
 
@@ -115,16 +139,20 @@ def inspect_sources_module(module: ModuleType) -> list[NodeSchema]:
             out_ann = inspect.Parameter.empty
 
         out_type_set = normalize_type(out_ann)
-        output_port = Port(name="output", type=_type_label(out_ann), type_set=sorted(out_type_set))
+        output_port = Port(
+            name="output", type=_type_label(out_ann), type_set=sorted(out_type_set)
+        )
 
-        schemas.append(NodeSchema(
-            class_name=name,
-            kind="source",
-            description=inspect.getdoc(cls),
-            config_fields=_config_fields_for(cls),
-            input_ports=[],
-            output_port=output_port,
-        ))
+        schemas.append(
+            NodeSchema(
+                class_name=name,
+                kind="source",
+                description=inspect.getdoc(cls),
+                config_fields=_config_fields_for(cls),
+                input_ports=[],
+                output_port=output_port,
+            )
+        )
 
     return schemas
 

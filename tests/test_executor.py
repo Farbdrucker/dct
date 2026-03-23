@@ -174,3 +174,66 @@ def test_unknown_node_type():
     resp = validate(payload, registry, schemas)
     assert resp.valid is False
     assert any(e.type == "unknown_node" for e in resp.errors)
+
+
+# ---------------------------------------------------------------------------
+# Error propagation — downstream nodes must be skipped, not aborted
+# ---------------------------------------------------------------------------
+
+def test_error_propagates_downstream():
+    """A failing node must skip all downstream nodes (not abort the whole DAG)."""
+    registry, schemas = setup()
+    # Div(1/0) → Power(exponent=2): Div fails, Power must be skipped
+    payload = DagPayload(
+        nodes=[
+            node("div", "Div", config={}, constants={"nominator": 1.0, "denominator": 0.0}),
+            node("pow", "Power", config={"exponent": 2}),
+        ],
+        edges=[
+            edge("e1", "div", "output", "pow", "base"),
+        ],
+    )
+    resp = execute(payload, registry, schemas)
+    assert resp.success is False
+    assert resp.error is not None
+    assert resp.error.exception_type == "ZeroDivisionError"
+
+    # Both nodes must appear in trace
+    assert len(resp.execution_trace) == 2
+    div_trace = next(t for t in resp.execution_trace if t.node_id == "div")
+    pow_trace = next(t for t in resp.execution_trace if t.node_id == "pow")
+
+    # div failed (not a skip)
+    assert div_trace.error is not None
+    assert div_trace.skipped is False
+    assert div_trace.value is None
+
+    # pow was skipped because div failed
+    assert pow_trace.skipped is True
+    assert pow_trace.error is not None  # carries the upstream error info
+
+
+def test_independent_branch_succeeds_when_other_fails():
+    """If two independent branches exist, the failing one should not affect the other."""
+    registry, schemas = setup()
+    # n_good: Power(3^2) = 9 — independent
+    # n_bad:  Div(1/0) — fails
+    # Both nodes feed constants only, no shared dependency
+    payload = DagPayload(
+        nodes=[
+            node("n_good", "Power", config={"exponent": 2}, constants={"base": 3.0}),
+            node("n_bad",  "Div",   config={},               constants={"nominator": 1.0, "denominator": 0.0}),
+        ],
+        edges=[],
+    )
+    resp = execute(payload, registry, schemas)
+    assert resp.success is False  # overall false because n_bad failed
+    assert resp.error is not None
+
+    good_trace = next(t for t in resp.execution_trace if t.node_id == "n_good")
+    bad_trace  = next(t for t in resp.execution_trace if t.node_id == "n_bad")
+
+    assert good_trace.error is None
+    assert good_trace.value == pytest.approx(9.0)
+    assert bad_trace.error is not None
+    assert bad_trace.skipped is False

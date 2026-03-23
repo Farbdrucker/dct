@@ -1,4 +1,4 @@
-import type { DagPayload, ExecuteResponse, SchemaResponse, SseEvent, ValidateResponse } from './types'
+import type { DagPayload, ExecuteResponse, ReplayPayload, SchemaResponse, SseEvent, SseProgressEvent, ValidateResponse } from './types'
 
 const BASE = '/api'
 
@@ -28,10 +28,21 @@ export async function executeDag(payload: DagPayload): Promise<ExecuteResponse> 
   return res.json()
 }
 
+export async function replayFailed(payload: ReplayPayload): Promise<ExecuteResponse> {
+  const res = await fetch(`${BASE}/dag/replay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(`Replay failed: ${res.status}`)
+  return res.json()
+}
+
 export async function executeStream(
   payload: DagPayload,
   onLine: (line: string) => void,
   onResult: (result: ExecuteResponse) => void,
+  onProgress?: (evt: SseProgressEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
   const res = await fetch(`${BASE}/dag/execute/stream`, {
@@ -60,6 +71,7 @@ export async function executeStream(
         try { event = JSON.parse(trimmed.slice(6)) } catch { continue }
         if (event.type === 'log') onLine(event.line)
         else if (event.type === 'result') onResult(event.payload)
+        else if (event.type === 'progress' && onProgress) onProgress(event as SseProgressEvent)
         else if (event.type === 'error') throw new Error(event.message)
         else if (event.type === 'done') return
       }

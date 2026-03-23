@@ -17,11 +17,11 @@ export interface Port {
 
 export interface NodeSchema {
   class_name: string
-  kind: 'transition' | 'source'
+  kind: 'transition' | 'source' | 'sink'
   description?: string | null
   config_fields: ConfigField[]
   input_ports: Port[]
-  output_port: Port
+  output_port: Port | null
 }
 
 export interface SchemaResponse {
@@ -49,10 +49,13 @@ export interface DagEdge {
   target_handle: string
 }
 
+export type ExecutorMode = 'sequential' | 'parallel' | 'dask'
+
 export interface DagPayload {
   nodes: DagNode[]
   edges: DagEdge[]
   capture_logs?: boolean
+  executor?: ExecutorMode
 }
 
 // Validation response
@@ -79,6 +82,8 @@ export interface ExecutionResult {
   node_type: string
   value: unknown
   value_type: string
+  error?: ExecutionError   // set if this node failed
+  skipped?: boolean        // true if bypassed due to upstream error
 }
 
 export interface ExecutionError {
@@ -89,19 +94,55 @@ export interface ExecutionError {
   traceback: string
 }
 
+export interface RowResult {
+  row_index: number
+  success: boolean
+  result?: ExecutionResult
+  error?: ExecutionError
+  trace?: ExecutionResult[]          // per-row trace (failed rows only)
+  source_values: Record<string, unknown>
+}
+
+export interface FailureReport {
+  total_rows: number
+  succeeded_rows: number
+  failed_rows: number
+  failed_items: RowResult[]
+}
+
 export interface ExecuteResponse {
   success: boolean
   result?: ExecutionResult          // single-pass
-  results: ExecutionResult[]        // batched (source-driven)
+  results: ExecutionResult[]        // successful row finals (source-driven)
   execution_trace: ExecutionResult[]
   error?: ExecutionError
   valid?: boolean
   errors?: ValidationError[]
   console_output?: string[]
+  row_results?: RowResult[]
+  failure_report?: FailureReport
 }
 
-export interface SseLogEvent    { type: 'log';    line: string }
-export interface SseResultEvent { type: 'result'; payload: ExecuteResponse }
-export interface SseErrorEvent  { type: 'error';  message: string }
-export interface SseDoneEvent   { type: 'done' }
-export type SseEvent = SseLogEvent | SseResultEvent | SseErrorEvent | SseDoneEvent
+export interface ReplayPayload {
+  nodes: DagNode[]
+  edges: DagEdge[]
+  capture_logs?: boolean
+  executor?: 'sequential' | 'parallel'
+  failed_items: RowResult[]
+}
+
+export interface SseLogEvent      { type: 'log';      line: string }
+export interface SseResultEvent   { type: 'result';   payload: ExecuteResponse }
+export interface SseErrorEvent    { type: 'error';    message: string }
+export interface SseDoneEvent     { type: 'done' }
+export interface SseProgressEvent {
+  type: 'progress'
+  mode: 'single' | 'batched'
+  nodes_completed: number | null
+  nodes_total: number | null
+  rows_completed: number | null
+  rows_per_sec: number | null
+  node_id: string | null
+  node_type: string | null
+}
+export type SseEvent = SseLogEvent | SseResultEvent | SseErrorEvent | SseDoneEvent | SseProgressEvent

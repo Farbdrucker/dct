@@ -1,10 +1,10 @@
 """Pydantic models for the DCT API JSON contract."""
+
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
-
 
 # ---------------------------------------------------------------------------
 # Schema (GET /api/nodes/schema)
@@ -28,11 +28,11 @@ class Port(BaseModel):
 
 class NodeSchema(BaseModel):
     class_name: str
-    kind: str = "transition"  # "transition" | "source"
+    kind: str = "transition"  # "transition" | "source" | "sink"
     description: str | None = None
     config_fields: list[ConfigField]
     input_ports: list[Port]
-    output_port: Port
+    output_port: Port | None = None  # None for sinks
 
 
 class SchemaResponse(BaseModel):
@@ -68,7 +68,7 @@ class DagPayload(BaseModel):
     nodes: list[DagNode]
     edges: list[DagEdge]
     capture_logs: bool = False
-    parallel: bool = False
+    executor: Literal["sequential", "parallel", "dask"] = "sequential"
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +103,8 @@ class ExecutionResult(BaseModel):
     node_type: str
     value: Any
     value_type: str
+    error: "ExecutionError | None" = None  # set if this node failed
+    skipped: bool = False  # True if bypassed due to upstream error
 
 
 class ExecutionError(BaseModel):
@@ -113,13 +115,51 @@ class ExecutionError(BaseModel):
     traceback: str
 
 
+class RowResult(BaseModel):
+    """Per-row result for batched (source-driven) execution."""
+
+    row_index: int
+    success: bool
+    result: ExecutionResult | None = None  # last non-sink result if success
+    error: ExecutionError | None = None  # first originating error if failure
+    trace: list[ExecutionResult] = []  # per-row trace (populated for failed rows only)
+    source_values: dict[str, Any] = {}  # source_node_id → yielded value (for replay)
+
+
+class FailureReport(BaseModel):
+    """Summary of failed rows; ``failed_items`` carry source values for re-execution."""
+
+    total_rows: int
+    succeeded_rows: int
+    failed_rows: int
+    failed_items: list[RowResult]
+
+
+class ReplayPayload(BaseModel):
+    """Re-execute a DAG for only the rows that failed in a previous run.
+
+    ``failed_items`` comes directly from ``FailureReport.failed_items``.
+    The source nodes in ``nodes`` are ignored during replay — each item's
+    ``source_values`` is fed directly into the DAG, bypassing source iteration.
+    """
+
+    nodes: list[DagNode]
+    edges: list[DagEdge]
+    capture_logs: bool = False
+    executor: Literal["sequential", "parallel"] = "sequential"
+    failed_items: list[RowResult]
+
+
 class ExecuteResponse(BaseModel):
     success: bool
-    result: ExecutionResult | None = None          # single-pass result
-    results: list[ExecutionResult] = []            # batched results (source-driven)
-    execution_trace: list[ExecutionResult] = []
+    result: ExecutionResult | None = None  # single-pass result
+    results: list[ExecutionResult] = []  # successful row finals (source-driven)
+    execution_trace: list[ExecutionResult] = []  # all nodes across all rows
     error: ExecutionError | None = None
     # If validation failed before execution
     valid: bool = True
     errors: list[ValidationError] = []
-    console_output: list[str] = []                 # ANSI-encoded lines
+    console_output: list[str] = []  # ANSI-encoded lines
+    # Per-row tracking (populated for batched execution)
+    row_results: list[RowResult] = []
+    failure_report: FailureReport | None = None

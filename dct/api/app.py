@@ -1,4 +1,5 @@
 """FastAPI application factory."""
+
 from __future__ import annotations
 
 import asyncio
@@ -44,8 +45,8 @@ def create_app(transitions_path: Path, source_path: Path | None = None) -> FastA
     # Serve bundled frontend (production)
     _static = Path(__file__).parent.parent / "static"
     if (_static / "index.html").exists():
-        from fastapi.staticfiles import StaticFiles
         from fastapi.responses import FileResponse
+        from fastapi.staticfiles import StaticFiles
 
         app.mount("/assets", StaticFiles(directory=_static / "assets"), name="assets")
 

@@ -1,4 +1,5 @@
 """Schema cache with hot-reload via watchfiles."""
+
 from __future__ import annotations
 
 import threading
@@ -54,7 +55,12 @@ class SchemaCache:
 
     def get(self) -> tuple[list[NodeSchema], str, ClassRegistry, InstanceCache]:
         with self._lock:
-            return self._schemas, self._version, self._class_registry, self._instance_cache
+            return (
+                self._schemas,
+                self._version,
+                self._class_registry,
+                self._instance_cache,
+            )
 
 
 async def watch_transitions(
@@ -72,4 +78,5 @@ async def watch_transitions(
             cache.refresh(transitions_path, source_path)
         except Exception as exc:
             import logging
+
             logging.getLogger(__name__).error("Failed to reload: %s", exc)

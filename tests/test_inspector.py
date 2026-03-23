@@ -19,7 +19,7 @@ def test_five_transitions():
     module = _get_module()
     schemas = inspect_module(module)
     names = {s.class_name for s in schemas}
-    assert names == {"AddTwoInt", "AddTwoFloats", "Div", "Power", "Root"}
+    assert names == {"AddTwoInt", "AddTwoFloats", "Div", "Power", "Root", "Collect"}
 
 
 def test_power_config_field():

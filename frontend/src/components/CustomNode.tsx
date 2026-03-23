@@ -35,6 +35,7 @@ export function CustomNode({ id, data, selected }: NodeProps) {
   const { schema, config, constants } = data as CustomNodeData
   const edges = useEdges()
   const updateNodeData = useDagStore((s) => s.updateNodeData)
+  const removeNode = useDagStore((s) => s.removeNode)
 
   const connectedInputs = new Set(
     edges.filter((e) => e.target === id).map((e) => e.targetHandle)
@@ -47,8 +48,15 @@ export function CustomNode({ id, data, selected }: NodeProps) {
       }`}
     >
       {/* Header */}
-      <div className="bg-gray-800 text-white text-sm font-semibold px-3 py-1.5 rounded-t-lg">
-        {schema.class_name}
+      <div className="bg-gray-800 text-white text-sm font-semibold px-3 py-1.5 rounded-t-lg flex items-center justify-between">
+        <span>{schema.class_name}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); removeNode(id) }}
+          className="ml-2 text-gray-400 hover:text-white leading-none"
+          title="Remove node"
+        >
+          ×
+        </button>
       </div>
 
       <div className="px-3 py-2 space-y-1 text-xs text-gray-700">
@@ -110,18 +118,20 @@ export function CustomNode({ id, data, selected }: NodeProps) {
           </div>
         ))}
 
-        {/* Output port */}
-        <div className="flex items-center gap-2 justify-end relative">
-          <span className="font-mono">output</span>
-          <TypeBadge typeSet={schema.output_port.type_set} />
-          <Handle
-            type="source"
-            position={Position.Right}
-            id="output"
-            style={{ right: -10 }}
-            data-typeset={JSON.stringify(schema.output_port.type_set)}
-          />
-        </div>
+        {/* Output port — omitted for sinks */}
+        {schema.output_port && (
+          <div className="flex items-center gap-2 justify-end relative">
+            <span className="font-mono">output</span>
+            <TypeBadge typeSet={schema.output_port.type_set} />
+            <Handle
+              type="source"
+              position={Position.Right}
+              id="output"
+              style={{ right: -10 }}
+              data-typeset={JSON.stringify(schema.output_port.type_set)}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

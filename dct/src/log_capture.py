@@ -1,4 +1,5 @@
 """Streaming capture of print() / rich.print() / logging output as ANSI text."""
+
 import io
 import logging
 import re
@@ -11,7 +12,7 @@ import rich.console
 import rich.logging
 
 # OSC escape sequences (e.g. Rich hyperlinks: ESC ] … ESC \ or BEL)
-_OSC_RE = re.compile(r'\x1b\].*?(?:\x1b\\|\x07)')
+_OSC_RE = re.compile(r"\x1b\].*?(?:\x1b\\|\x07)")
 
 
 class StreamingWriter(io.TextIOBase):
@@ -22,7 +23,7 @@ class StreamingWriter(io.TextIOBase):
 
     def write(self, s: str) -> int:
         n = len(s)
-        s = _OSC_RE.sub('', s)  # strip hyperlinks and other OSC sequences
+        s = _OSC_RE.sub("", s)  # strip hyperlinks and other OSC sequences
         self._buf += s
         while "\n" in self._buf:
             line, self._buf = self._buf.split("\n", 1)
@@ -49,7 +50,9 @@ class StreamingWriter(io.TextIOBase):
 def streaming_capture(callback: Callable[[str], None]):
     writer = StreamingWriter(callback)
     # Console for rich.print() — no highlight so markup colours pass through cleanly
-    print_console = rich.console.Console(file=writer, force_terminal=True, width=120, highlight=False)
+    print_console = rich.console.Console(
+        file=writer, force_terminal=True, width=120, highlight=False
+    )
     # Console for logging — keep highlight so log values get coloured
     log_console = rich.console.Console(file=writer, force_terminal=True, width=120)
 
@@ -58,7 +61,7 @@ def streaming_capture(callback: Callable[[str], None]):
 
     log_handler = rich.logging.RichHandler(
         console=log_console,
-        show_path=False,   # no file:line hyperlinks
+        show_path=False,  # no file:line hyperlinks
         markup=True,
     )
 

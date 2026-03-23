@@ -1,30 +1,19 @@
-import logging
+import threading
 
-from pydantic.dataclasses import dataclass
-from rich import get_console
-from rich.logging import RichHandler
-
-FORMAT = "%(message)s"
-logging.basicConfig(
-    level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
-)
-
-logger = logging.getLogger("source")
+from dct.src.sink import Sink
+from dct.src.transition import Transition
 
 
-console = get_console()
-
-@dataclass
-class AddTwoInt:
+# Style 1: inheritance (preferred)
+class AddTwoInt(Transition):
     """
     Adding two integers
     """
     def __call__(self, a: int, b: int) -> int:
-        console.print(f"Adding {a} and {b}: {a} + {b} = {a + b}")
         return a + b
 
-@dataclass
-class AddTwoFloats:
+
+class AddTwoFloats(Transition):
     """
     Adding two floats
     """
@@ -32,17 +21,7 @@ class AddTwoFloats:
         return a + b
 
 
-@dataclass
-class Div:
-    """
-    Divide the nominator by the denominator
-    """
-    def __call__(self, nominator: int | float, denominator: int | float) -> float:
-        logger.info(f"Running Div on {nominator}, {denominator}")
-        return float(nominator / denominator)
-
-@dataclass
-class Power:
+class Power(Transition):
     """
     base^exponent
 
@@ -52,13 +31,39 @@ class Power:
     exponent: int | float
 
     def __call__(self, base: int | float) -> float:
-        logger.info(f"Running Power on {base}^{self.exponent}")
         return float(base ** self.exponent)
 
 
-@dataclass
-class Root:
+class Root(Transition):
     radix: int | float
 
     def __call__(self, value: int | float) -> float:
         return float(value ** (1 / self.radix))
+
+
+# Style 2: class decorator (equivalent)
+@Transition
+class Div:
+    """
+    Divide the nominator by the denominator
+    """
+    def __call__(self, nominator: int | float, denominator: int | float) -> float:
+        return float(nominator / denominator)
+
+
+class Collect(Sink):
+    """Accumulate every result into a list and print a summary on close.
+
+    Thread-safe: a lock protects the shared list when running in parallel mode.
+    """
+
+    def __call__(self, value: int | float) -> None:
+        with self._lock:
+            self._results.append(value)
+
+    def close(self) -> None:
+        print(f"Collect: {len(self._results)} values, sum={sum(self._results)}")
+
+    def __post_init__(self) -> None:
+        self._results: list[int | float] = []
+        self._lock = threading.Lock()
