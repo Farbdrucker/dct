@@ -29,6 +29,7 @@ interface UiState {
   rowsCompleted: number
   rowsPerSec: number | null
   startedAt: number | null
+  lastElapsedMs: number | null
   startProgress: () => void
   setProgress: (p: SseProgressEvent) => void
   resetProgress: () => void
@@ -57,9 +58,10 @@ export const useUiStore = create<UiState>((set) => ({
   rowsCompleted: 0,
   rowsPerSec: null,
   startedAt: null,
+  lastElapsedMs: null,
   startProgress: () => set({
     progressMode: null, nodesCompleted: 0, nodesTotal: null,
-    rowsCompleted: 0, rowsPerSec: null, startedAt: Date.now(),
+    rowsCompleted: 0, rowsPerSec: null, startedAt: Date.now(), lastElapsedMs: null,
   }),
   setProgress: (p) => set({
     progressMode: p.mode,
@@ -68,8 +70,10 @@ export const useUiStore = create<UiState>((set) => ({
     rowsCompleted: p.rows_completed ?? 0,
     rowsPerSec: p.rows_per_sec ?? null,
   }),
-  resetProgress: () => set({
+  resetProgress: () => set((state) => ({
     progressMode: null, nodesCompleted: 0, nodesTotal: null,
-    rowsCompleted: 0, rowsPerSec: null, startedAt: null,
-  }),
+    rowsCompleted: 0, rowsPerSec: null,
+    lastElapsedMs: state.startedAt ? Date.now() - state.startedAt : null,
+    startedAt: null,
+  })),
 }))
