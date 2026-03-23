@@ -22,18 +22,44 @@ A visual DAG composer for typed Python transition functions.
 
 ## Install
 
-**Prerequisites:** Python ≥ 3.13, [uv](https://github.com/astral-sh/uv)
+**Prerequisites:** Python ≥ 3.13
+
+DCT is split into three installation scopes so you only pull in what you need.
+
+### Core — define nodes only
+
+Just `Transition`, `Source`, `Sink`. Depends on `pydantic` only.
 
 ```bash
-uv tool install git+https://github.com/Farbdrucker/dct
+pip install dct
 ```
 
-Or clone and install locally:
+### Execute — run DAGs from Python or the CLI
+
+Adds the execution engine, inspector, and `dct run`. Brings in `rich`, `typer`, and `dask`.
+
+```bash
+pip install "dct[execute]"
+```
+
+### UI — visual editor + API server
+
+Full stack: everything above plus the FastAPI server, file watcher, and `dct serve`. Brings in `fastapi`, `uvicorn`, and `watchfiles`.
+
+```bash
+pip install "dct[ui]"
+```
+
+> `[ui]` is a superset of `[execute]`, which is a superset of the bare install.
+
+---
+
+### Install from source
 
 ```bash
 git clone https://github.com/Farbdrucker/dct
 cd dct
-uv sync
+uv sync --extra ui   # or: uv sync --extra execute
 ```
 
 ---
@@ -45,7 +71,7 @@ uv sync
 Create a `transitions.py` file. Each class implements `__call__` with typed arguments and a typed return value. Class-level attributes become configuration fields set in the UI.
 
 ```python
-from dct.src.transition import Transition
+from dct import Transition
 
 class AddInts(Transition):
     """Add two integers."""
@@ -67,7 +93,7 @@ You can also use `@Transition` as a decorator on a plain class — equivalent to
 Create a `source.py` next to your transitions. Sources feed rows of data into the DAG; each row flows through all connected transitions independently.
 
 ```python
-from dct.src.source import Source
+from dct import Source
 from typing import Iterator
 
 class RangeSource(Source):
@@ -87,7 +113,7 @@ Sinks are terminal nodes that accumulate state across rows (e.g. writing to a fi
 
 ```python
 import threading
-from dct.src.sink import Sink
+from dct import Sink
 
 class Collect(Sink):
     def __call__(self, value: float) -> None:
@@ -270,8 +296,8 @@ Content-Type: application/json
 **Via Python:**
 
 ```python
-from dct.src.executor import replay_failed
-from dct.api.models import ReplayPayload
+from dct.engine.executor import replay_failed
+from dct.engine.models import ReplayPayload
 
 response = execute(payload, registry, schemas)
 
@@ -294,7 +320,7 @@ The replay response has the same shape as a normal `ExecuteResponse` — includi
 ## Running from source (development)
 
 ```bash
-# backend
+# backend (requires uv sync --extra ui)
 uv run uvicorn dct.api.app:app --reload   # port 8000
 
 # frontend (separate terminal)
