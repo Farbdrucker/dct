@@ -31,7 +31,7 @@ DCT is split into three installation scopes so you only pull in what you need.
 Just `Transition`, `Source`, `Sink`. Depends on `pydantic` only.
 
 ```bash
-pip install dct
+pip install "dct @ git+https://github.com/Farbdrucker/dct"
 ```
 
 ### Execute — run DAGs from Python or the CLI
@@ -39,7 +39,7 @@ pip install dct
 Adds the execution engine, inspector, and `dct run`. Brings in `rich`, `typer`, and `dask`.
 
 ```bash
-pip install "dct[execute]"
+pip install "dct[execute] @ git+https://github.com/Farbdrucker/dct"
 ```
 
 ### UI — visual editor + API server
@@ -47,7 +47,7 @@ pip install "dct[execute]"
 Full stack: everything above plus the FastAPI server, file watcher, and `dct serve`. Brings in `fastapi`, `uvicorn`, and `watchfiles`.
 
 ```bash
-pip install "dct[ui]"
+pip install "dct[ui] @ git+https://github.com/Farbdrucker/dct"
 ```
 
 > `[ui]` is a superset of `[execute]`, which is a superset of the bare install.
