@@ -19,7 +19,7 @@ console = Console()
 
 def _print_response(response: object, con: Console) -> None:
     """Pretty-print an ExecuteResponse using Rich."""
-    from dct.api.models import ExecuteResponse
+    from dct.engine.models import ExecuteResponse
 
     r: ExecuteResponse = response  # type: ignore[assignment]
 
@@ -110,9 +110,11 @@ def serve(
     open_browser: bool = typer.Option(True, "--open/--no-open"),
 ) -> None:
     """Serve the DCT UI and API for the given transitions file."""
-    import uvicorn
-
-    from dct.api.app import create_app
+    try:
+        import uvicorn
+        from dct.server.app import create_app
+    except ImportError:
+        raise typer.Exit("Install dct[ui] to use the serve command: pip install dct[ui]")
 
     transitions_path = transitions.resolve()
 
@@ -152,13 +154,16 @@ def run(
     ),
 ) -> None:
     """Execute a DAG from the command line without starting the API server."""
-    from dct.api.models import DagPayload
-    from dct.src.inspector import (
-        inspect_module,
-        inspect_sources_module,
-        load_source_module,
-        load_transitions_module,
-    )
+    try:
+        from dct.engine.models import DagPayload
+        from dct.engine.inspector import (
+            inspect_module,
+            inspect_sources_module,
+            load_source_module,
+            load_transitions_module,
+        )
+    except ImportError:
+        raise typer.Exit("Install dct[execute] to use the run command: pip install dct[execute]")
 
     # 1. Load transitions module
     t_module = load_transitions_module(transitions.resolve())
@@ -195,11 +200,11 @@ def run(
 
     # 4. Execute
     if use_dask:
-        from dct.src.dask_executor import execute_dag_dask
+        from dct.engine.dask_executor import execute_dag_dask
 
         response = execute_dag_dask(payload, class_registry, node_schemas)
     else:
-        from dct.src.executor import execute
+        from dct.engine.executor import execute
 
         response = execute(payload, class_registry, node_schemas)
 

@@ -13,6 +13,18 @@ function formatDuration(s: number): string {
   return `${Math.floor(s / 60)}m ${s % 60}s`
 }
 
+function ElapsedBadge() {
+  const lastElapsedMs = useUiStore((s) => s.lastElapsedMs)
+  if (!lastElapsedMs) return null
+  const s = lastElapsedMs / 1000
+  const label = s < 60
+    ? `${s.toFixed(s < 10 ? 2 : 1)}s`
+    : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`
+  return (
+    <span className="text-xs text-gray-500 ml-auto shrink-0">{label}</span>
+  )
+}
+
 const indeterminateStyle: React.CSSProperties = {
   width: '35%',
   animation: 'indeterminate-bar 1.4s ease-in-out infinite',
@@ -76,7 +88,7 @@ export function ResultPanel({ result, isRunning, onReplay }: Props) {
   if (!result.valid && result.errors && result.errors.length > 0) {
     return (
       <div className="p-3 space-y-1">
-        <div className="text-red-500 font-semibold text-sm">Validation errors</div>
+        <div className="flex items-center text-red-500 font-semibold text-sm">Validation errors<ElapsedBadge /></div>
         {result.errors.map((e, i) => (
           <div key={i} className="text-xs text-red-400 bg-red-950 rounded px-2 py-1">
             <span className="font-mono">[{e.type}]</span> {e.message}
@@ -90,8 +102,8 @@ export function ResultPanel({ result, isRunning, onReplay }: Props) {
   if (!result.success && result.error && !result.failure_report) {
     return (
       <div className="p-3 space-y-2">
-        <div className="text-red-500 font-semibold text-sm">
-          {result.error.exception_type}: {result.error.message}
+        <div className="flex items-center gap-2 text-red-500 font-semibold text-sm">
+          <span>{result.error.exception_type}: {result.error.message}</span><ElapsedBadge />
         </div>
         <pre className="text-xs text-red-300 bg-red-950 rounded p-2 overflow-auto max-h-40">
           {result.error.traceback}
@@ -112,8 +124,8 @@ export function ResultPanel({ result, isRunning, onReplay }: Props) {
       : result.results.length
     return (
       <div className="p-3 space-y-2">
-        <div className={`font-semibold text-sm ${result.success ? 'text-green-400' : 'text-yellow-400'}`}>
-          {succeeded}/{total} rows succeeded
+        <div className={`flex items-center font-semibold text-sm ${result.success ? 'text-green-400' : 'text-yellow-400'}`}>
+          {succeeded}/{total} rows succeeded<ElapsedBadge />
         </div>
         {result.results.length > 0 && (
           <div className="space-y-0.5 max-h-32 overflow-y-auto">
@@ -140,9 +152,10 @@ export function ResultPanel({ result, isRunning, onReplay }: Props) {
     return (
       <div className="p-3 space-y-2">
         {result.success ? (
-          <div className="text-green-400 font-semibold text-sm">
-            Result: <span className="font-mono">{JSON.stringify(result.result.value)}</span>
-            <span className="ml-2 text-gray-400 text-xs">({result.result.value_type})</span>
+          <div className="flex items-center gap-1 text-green-400 font-semibold text-sm">
+            <span>Result: <span className="font-mono">{JSON.stringify(result.result.value)}</span></span>
+            <span className="text-gray-400 text-xs font-normal">({result.result.value_type})</span>
+            <ElapsedBadge />
           </div>
         ) : (
           <div className="text-red-500 font-semibold text-sm">Execution failed</div>
@@ -156,7 +169,7 @@ export function ResultPanel({ result, isRunning, onReplay }: Props) {
   if (result.success) {
     return (
       <div className="p-3">
-        <div className="text-green-400 font-semibold text-sm">Execution succeeded</div>
+        <div className="flex items-center text-green-400 font-semibold text-sm">Execution succeeded<ElapsedBadge /></div>
         {result.execution_trace.length > 0 && <Trace trace={result.execution_trace} />}
       </div>
     )

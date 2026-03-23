@@ -99,44 +99,62 @@ name = "dct"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "pydantic" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "dask", extra = ["distributed"] },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "rich" },
+    { name = "ruff" },
+    { name = "ty" },
+    { name = "typer" },
+    { name = "uvicorn", extra = ["standard"] },
+    { name = "watchfiles" },
+]
+distributed = [
+    { name = "dask", extra = ["distributed"] },
+    { name = "rich" },
+    { name = "typer" },
+]
+execute = [
+    { name = "dask" },
+    { name = "rich" },
+    { name = "typer" },
+]
+ui = [
     { name = "dask" },
     { name = "fastapi" },
-    { name = "pydantic" },
     { name = "rich" },
     { name = "typer" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "watchfiles" },
 ]
 
-[package.optional-dependencies]
-dev = [
-    { name = "httpx" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-distributed = [
-    { name = "dask", extra = ["distributed"] },
-]
-
 [package.metadata]
 requires-dist = [
-    { name = "dask", specifier = ">=2024.1.0" },
+    { name = "dask", marker = "extra == 'execute'", specifier = ">=2024.1.0" },
     { name = "dask", extras = ["distributed"], marker = "extra == 'distributed'", specifier = ">=2024.1.0" },
-    { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "dct", extras = ["execute"], marker = "extra == 'distributed'" },
+    { name = "dct", extras = ["execute"], marker = "extra == 'ui'" },
+    { name = "dct", extras = ["ui", "distributed"], marker = "extra == 'dev'" },
+    { name = "fastapi", marker = "extra == 'ui'", specifier = ">=0.115.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25.0" },
-    { name = "rich", specifier = ">=14.3.3" },
+    { name = "rich", marker = "extra == 'execute'", specifier = ">=14.3.3" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.15.5" },
     { name = "ty", marker = "extra == 'dev'", specifier = ">=0.0.21" },
-    { name = "typer", specifier = ">=0.24.1" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
-    { name = "watchfiles", specifier = ">=1.0.0" },
+    { name = "typer", marker = "extra == 'execute'", specifier = ">=0.24.1" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'ui'", specifier = ">=0.34.0" },
+    { name = "watchfiles", marker = "extra == 'ui'", specifier = ">=1.0.0" },
 ]
-provides-extras = ["distributed", "dev"]
+provides-extras = ["execute", "ui", "distributed", "dev"]
 
 [[package]]
 name = "distributed"
